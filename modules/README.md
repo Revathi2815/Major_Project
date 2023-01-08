@@ -1,12 +1,12 @@
 There are 4 modules:
 
-Sensing module
+=> Sensing module
 
-Voice module
+=> Voice module
 
-Power module
+=> Power module
 
-IoT module
+=> IoT module
 
 **Sensing Modules:**
 
