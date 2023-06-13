@@ -1,0 +1,264 @@
+#include <OneWire.h>
+#include <DallasTemperature.h>
+ 
+#include <SoftwareSerial.h>
+#include <LiquidCrystal.h>
+LiquidCrystal lcd(13,12,11,10,9,8);
+SoftwareSerial BT(2,3);
+
+// #define ONE_WIRE_BUS 7 //A5
+// OneWire oneWire(ONE_WIRE_BUS);
+// DallasTemperature sensors(&oneWire);
+
+OneWire  ds(A1);
+
+
+DeviceAddress devices[10];
+
+int LevelSensor = A0;
+float SensorValue = 0;
+
+const int v1 =  4;//25% FILLED
+const int v2 =  5;//50% FILLED
+const int v3 =  6;// 75% FILLED
+const int v4 =  7;// 100% FULL FILLED
+
+
+
+
+const int v5 =  A3;//TEMP HOT DETECTED
+const int v6 =  A4;//TEMP MILD 
+const int v7 =  A5;// TEMP COLD
+
+
+
+
+//const int v5 = A;
+int count;
+
+int iotcount = 0;
+float temp;
+boolean vflag1,vflag2,vflag3,vflag4;
+void setup()
+{ 
+  vflag1 = 0;
+  vflag2 = 0;
+  vflag3 = 0;
+  vflag4 = 0;
+  //sensors.begin();
+  BT.begin(9600);
+  Serial.begin(9600);
+  pinMode(v1, OUTPUT);
+  pinMode(v2, OUTPUT);
+  pinMode(v3, OUTPUT);
+  pinMode(v4, OUTPUT);
+
+  pinMode(v5, OUTPUT);
+  pinMode(v6, OUTPUT);
+  pinMode(v7, OUTPUT);
+  
+digitalWrite(v1,HIGH);
+digitalWrite(v2,HIGH);
+digitalWrite(v3,HIGH);
+digitalWrite(v4,HIGH);
+
+digitalWrite(v5,HIGH);
+digitalWrite(v6,HIGH);
+digitalWrite(v7,HIGH);
+
+
+//  pinMode(v5, OUTPUT);
+  lcd.begin(16, 2);
+  lcd.print("IOT LIQUID LEVEL");
+  lcd.setCursor(0, 1);
+  lcd.print(" MONITORING SYS");
+  delay(3000);
+  lcd.clear();
+}
+void loop()
+{
+   //sensors.requestTemperatures();
+   byte i;
+  byte present = 0;
+  byte type_s;
+  byte data[9];
+  byte addr[8];
+  float celsius, fahrenheit;
+   
+
+   if ( !ds.search(addr)) {
+    Serial.println("No more addresses.");
+    Serial.println();
+    ds.reset_search();
+    delay(250);
+    return;
+  }
+  
+  Serial.print("ROM =");
+  for( i = 0; i < 8; i++) {
+    Serial.write(' ');
+    Serial.print(addr[i], HEX);
+  }
+
+  if (OneWire::crc8(addr, 7) != addr[7]) {
+      Serial.println("CRC is not valid!");
+      return;
+  }
+  Serial.println();
+ 
+  // the first ROM byte indicates which chip
+  switch (addr[0]) {
+    case 0x10:
+      Serial.println("  Chip = DS18S20");  // or old DS1820
+      type_s = 1;
+      break;
+    case 0x28:
+      Serial.println("  Chip = DS18B20");
+      type_s = 0;
+      break;
+    case 0x22:
+      Serial.println("  Chip = DS1822");
+      type_s = 0;
+      break;
+    default:
+      Serial.println("Device is not a DS18x20 family device.");
+      return;
+  } 
+
+  ds.reset();
+  ds.select(addr);
+  ds.write(0x44, 1);        // start conversion, with parasite power on at the end
+  
+  delay(1000);     // maybe 750ms is enough, maybe not
+  // we might do a ds.depower() here, but the reset will take care of it.
+  
+  present = ds.reset();
+  ds.select(addr);    
+  ds.write(0xBE);         // Read Scratchpad
+
+  Serial.print("  Data = ");
+  Serial.print(present, HEX);
+  Serial.print(" ");
+  for ( i = 0; i < 9; i++) {           // we need 9 bytes
+    data[i] = ds.read();
+    Serial.print(data[i], HEX);
+    Serial.print(" ");
+  }
+  Serial.print(" CRC=");
+  Serial.print(OneWire::crc8(data, 8), HEX);
+  Serial.println();
+
+  // Convert the data to actual temperature
+  // because the result is a 16 bit signed integer, it should
+  // be stored to an "int16_t" type, which is always 16 bits
+  // even when compiled on a 32 bit processor.
+  int16_t raw = (data[1] << 8) | data[0];
+  if (type_s) {
+    raw = raw << 3; // 9 bit resolution default
+    if (data[7] == 0x10) {
+      // "count remain" gives full 12 bit resolution
+      raw = (raw & 0xFFF0) + 12 - data[6];
+    }
+  } else {
+    byte cfg = (data[4] & 0x60);
+    // at lower res, the low bits are undefined, so let's zero them
+    if (cfg == 0x00) raw = raw & ~7;  // 9 bit resolution, 93.75 ms
+    else if (cfg == 0x20) raw = raw & ~3; // 10 bit res, 187.5 ms
+    else if (cfg == 0x40) raw = raw & ~1; // 11 bit res, 375 ms
+    //// default is 12 bit resolution, 750 ms conversion time
+  }
+  celsius = (float)raw / 16.0;
+  fahrenheit = celsius * 1.8 + 32.0;
+  Serial.print("  Temperature = ");
+  Serial.print(celsius);
+  Serial.print(" Celsius, ");
+  Serial.print(fahrenheit);
+  Serial.println(" Fahrenheit");
+   
+   
+   //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+   
+   lcd.setCursor(0, 0);
+   lcd.print("Temp:");
+//   temp = sensors.getTempCByIndex(0);
+   Serial.println(celsius);
+   lcd.print(celsius);
+   lcd.print(char(223));
+   lcd.print('C');
+  if(celsius>75)
+   {
+     digitalWrite(v5,LOW);
+     delay(2000);
+     digitalWrite(v5,HIGH);
+     lcd.setCursor(0, 1);
+    lcd.print("L:HOT ");
+    }
+     else if(celsius>50&&celsius<60)
+    {
+     digitalWrite(v6,LOW);
+     delay(2000);
+     digitalWrite(v6,HIGH);
+     lcd.setCursor(0, 1);
+    lcd.print("L:WARM ");
+    }
+    if(celsius<30)
+    {
+  //  digitalWrite(v7,LOW);
+  //  delay(2000);
+  //  digitalWrite(v7,HIGH);  
+  //   lcd.setCursor(0, 1);
+  //   lcd.print("L:COLD");
+    }
+   for(iotcount= 0 ;iotcount<5;iotcount++)
+   {
+     BT.print(" *<meta http-equiv=\"refresh\" content = \"3\" ><h1 style=\"color:red;text-align:center\">IOT LIQUID LEVEL </h1><h2 style=\"color:red;text-align:center\"> MONITORING SYSTEM</h2>"); 
+     BT.print("<h2 align = center>Temperature:");
+     BT.print(celsius);
+     BT.print("C</h2>#");    
+   }
+   
+   SensorValue = analogRead(A0);
+   SensorValue = (SensorValue/1024)*5;
+   //lcd.setCursor(11,1);
+   //lcd.print(SensorValue);
+   if(SensorValue<2.0 && SensorValue>0)
+   {
+    // digitalWrite(v1,LOW);
+    // delay(2000);
+    // digitalWrite(v1,HIGH);
+    // delay(2000);
+   
+    }
+   
+   else if(SensorValue>2.0 && SensorValue<2.5)
+   {
+     lcd.setCursor(10,1);
+     lcd.print("LL:50%");
+   
+      digitalWrite(v2,LOW);
+      delay(2000);
+      digitalWrite(v2,HIGH);
+      delay(2000);
+ 
+   }
+   else if(SensorValue>2.5 && SensorValue<2.8)
+   {
+     lcd.setCursor(10,1);
+     lcd.print("LL:75%");
+      digitalWrite(v3,LOW);
+      delay(2000);
+      digitalWrite(v3,HIGH);
+      delay(2000);
+  
+   }
+   else if(SensorValue>2.9)
+   {
+      lcd.setCursor(9,1);
+     lcd.print("LL:100%");
+      digitalWrite(v4,LOW);
+      delay(2000);
+      digitalWrite(v4,HIGH);
+      delay(2000);
+  
+   }
+}
