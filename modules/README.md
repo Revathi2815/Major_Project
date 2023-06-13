@@ -10,7 +10,7 @@ There are 4 modules:
 
 **Sensing Modules:**
 
-In this Sensing Modules we are using two sensors like: Water level sensor and Temperature sensor. Liquid level monitoring system with different levels indicated by using water level sensor. It also signifies when the water level is below and above the requirement. And the temperature sensor is used to know whether the temperature of the liquid is hot, mild, or cold.
+In this Sensing Modules we are using two sensors like: Water level sensor and Temperature sensor. Liquid level monitoring system with different levels indicated by using water level sensor. It also signifies when the water level is below and above the requirement. And the temperature sensor is used to know whether the temperature of the liquid is hot and warm.
 
 \\
 
